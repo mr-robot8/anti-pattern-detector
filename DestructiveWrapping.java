@@ -7,6 +7,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CatchClause;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
@@ -17,35 +18,40 @@ public class DestructiveWrapping {
 	public static int checkDestructiveWrapping(String source) throws IOException
 	{
 		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
-			parser.setSource(source.toCharArray());
-			
-			ASTNode root = parser.createAST(null);
-					
-			root.accept(new Visitor());
-			int ans = count;
-			count =0;
-			return ans;
+		parser.setSource(source.toCharArray());
+		
+		ASTNode root = parser.createAST(null);
+				
+		root.accept(new Visitor());
+		int ans = count;
+		count =0;
+		return ans;
 	}
 	static class Visitor extends ASTVisitor
 	{
 		@Override
-	    public boolean visit(CatchClause node) 
+	    public boolean visit(ClassInstanceCreation node) 
 		{
-			int startPosition = node.getStartPosition();
-			int length = node.getLength();
-			int endPosition = startPosition + length -1;
-			
-			for (Object obj : node.getBody().statements()) 
+			if(node.getParent() instanceof ThrowStatement)
 			{
-				if((obj instanceof ThrowStatement) || (obj instanceof TryStatement))
-	            {
-					count+=1;
-					driver.writeToFile("\nDestructive Wrapping Anti-pattern detected between line " + 
-			                   ((CompilationUnit) node.getRoot()).getLineNumber(startPosition) + 
-			                   " and line " + ((CompilationUnit) node.getRoot()).getLineNumber(endPosition) );
-	            }
-	        }
-	        return true;
-	    }
+				ASTNode newNode = node.getParent();
+				while(newNode != null)
+				{
+					if(newNode instanceof CatchClause)
+					{
+						int startPosition = newNode.getStartPosition();
+						int endPosition = node.getStartPosition();
+						count+=1;
+						driver.writeToFile("\nDestructive Wrapping Anti-pattern detected between line " + 
+				                   ((CompilationUnit) node.getRoot()).getLineNumber(startPosition) + 
+				                   " and line " + ((CompilationUnit) node.getRoot()).getLineNumber(endPosition) );
+						break;
+					}
+					newNode = newNode.getParent();
+				}	
+				
+			}
+			return false;
+		}		
 	}
 }
