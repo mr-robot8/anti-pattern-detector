@@ -5,8 +5,11 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.TryStatement;
+
+import com.concordia.soen.DestructiveWrapping.Visitor;
 
 
 public class NestedTry {
@@ -26,24 +29,21 @@ public class NestedTry {
 		@Override
 	    public boolean visit(TryStatement node) 
 		{
-			int startPosition = node.getStartPosition();
-			int length = node.getLength();
-			int endPosition = startPosition + length -1;
-			
-	        if (node.getBody() != null) 
-	        {
-	        	for (Object statement : node.getBody().statements()) 
-	        	{
-	        		if (statement instanceof TryStatement) 
-	        		{
-	        			count+=1;
-	        			driver.writeToFile("\nNested Try Anti-pattern detected between line " + 
-	     	                   ((CompilationUnit) node.getRoot()).getLineNumber(startPosition) + 
-	     	                   " and line " + ((CompilationUnit) node.getRoot()).getLineNumber(endPosition) );
-	        			break;
-	                }
-	            }
-	        }
+			ASTNode newNode = node.getParent();
+			while(newNode != null)
+			{
+				if(newNode instanceof TryStatement)
+				{
+					int startPosition = newNode.getStartPosition();
+					int endPosition = node.getStartPosition();
+					count+=1;
+        			driver.writeToFile("\nNested Try Anti-pattern detected between line " + 
+     	                   ((CompilationUnit) node.getRoot()).getLineNumber(startPosition) + 
+     	                   " and line " + ((CompilationUnit) node.getRoot()).getLineNumber(endPosition) );
+					break;
+				}
+				newNode = newNode.getParent();
+			}
 	        return true;
 	    }
 	}
